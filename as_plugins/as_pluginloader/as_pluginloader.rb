@@ -40,6 +40,9 @@ History:        1.0 (3/9/2009) - first version
                 - Removed developer links (those are now in my Ruby Code Editor)
                 - Changed layout of browser a bit
                 - Fixed mac issues: dlg can't show modal, browser buttons dont work well
+        				1.3 (TBD):
+        				- Added RBZ loading option
+                - Updates links
 
 TODO List:      - Dialog doesn't show up modal on mac.
                 - Broser buttons don't work on mac.
@@ -138,8 +141,19 @@ HISTORY:
       end
     end
   end # load_plugin_file
+  
+  
+  def self.load_plugin_zip
+    if Sketchup.version.to_f < 7.0
+      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)"
+    else
+      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", "", "*.rbz;*.zip"
+    end
+    # UI.messagebox filename.gsub("\\", "/")
+    Sketchup.install_from_archive(filename)
+  end # load_plugin_zip  
 
-
+  
   def as_require_all(dirname)
     begin
       rbfiles = Dir[File.join(dirname, "*.rb")]
@@ -188,8 +202,8 @@ HISTORY:
   end # browse_webdlg
   
   
-  # Inactive for now - searches custom search engin
-  def self.search_google e
+  # Inactive for now - searches custom search engine
+  def self.search_google
     dlg = UI::WebDialog.new("Search Google for a SketchUp plugin...", true,
     "Plugin Browser", 900, 700, 150, 150, true);
     dlg_html="<html><head></head><body style=\"margin:10px;padding:0;font-family:Arial,sans-serif;font-size:9pt;background-color:#fff;\"><div id=\"cse\" style=\"width: 100%;\">Loading</div><script src=\"http://www.google.com/jsapi\" type=\"text/javascript\"></script><script type=\"text/javascript\">google.load('search', '1', {language : 'en'});google.setOnLoadCallback(function(){var customSearchControl = new google.search.CustomSearchControl('004295665205910887318:3ovib9jeubq');customSearchControl.setResultSetSize(google.search.Search.SMALL_RESULTSET);var options = new google.search.DrawOptions();options.setAutoComplete(true);customSearchControl.draw('cse', options);}, true);</script></body></html>"
@@ -225,24 +239,27 @@ if !file_loaded?(__FILE__)
 
   if as_rubymenu
   
-    as_rubymenu.add_item("Load single plugin") { AS_plugin_loader::load_plugin_file }
-    as_rubymenu.add_item("Load plugins from folder") { AS_plugin_loader::load_plugin_folder }
+    as_rubymenu.add_item("Load single plugin (RB)") { AS_plugin_loader::load_plugin_file }
+    as_rubymenu.add_item("Load all plugins from a folder") { AS_plugin_loader::load_plugin_folder }
+    as_rubymenu.add_item("Install single plugin (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip }
     as_rubymenu.add_item("Manage installed plugins") { UI.show_preferences "Extensions" }
     
     as_rubymenu.add_separator
   
     as_rubymenu.add_item("Plugin Search (Google Custom Search)") {
       AS_plugin_loader::browse_webdlg("http://www.google.com/cse?cx=004295665205910887318:3ovib9jeubq&ie=UTF-8&q=") }
-    as_rubymenu.add_item("Google - Plugins Index") {
-      AS_plugin_loader::browse_webdlg("http://sketchup.google.com/download/plugins.html") }
-    as_rubymenu.add_item("Google - Ruby Scripts Index") {
-      AS_plugin_loader::browse_webdlg("http://sketchup.google.com/download/rubyscripts.html") }
-    as_rubymenu.add_item("SketchUcation - Plugin Index") {
-      AS_plugin_loader::browse_webdlg("http://forums.sketchucation.com/viewtopic.php?f=323&t=28782") }
-    as_rubymenu.add_item("Ruby Library Depot") {
-      AS_plugin_loader::browse_webdlg("http://rhin.crai.archi.fr/RubyLibraryDepot/") }
+    as_rubymenu.add_item("Trimble - SketchUp Plugins Index") {
+      AS_plugin_loader::browse_webdlg("http://www.sketchup.com/download/plugins.html") }
+    as_rubymenu.add_item("Trimble - SketchUp Ruby Scripts Index") {
+      AS_plugin_loader::browse_webdlg("http://www.sketchup.com/download/rubyscripts.html") }
+    as_rubymenu.add_item("SketchUp Plugin Index") {
+      AS_plugin_loader::browse_webdlg("http://sketchupplugins.com/") }
+    as_rubymenu.add_item("SketchUcation - Plugins Index") {
+      AS_plugin_loader::browse_webdlg("http://sketchucation.com/forums/viewtopic.php?f=323&t=28782") }
     as_rubymenu.add_item("SCF - Visual Plugin Index") {
-      AS_plugin_loader::browse_webdlg("http://forums.sketchucation.com/viewtopic.php?f=323&t=16909") }
+      AS_plugin_loader::browse_webdlg("http://sketchucation.com/forums/viewtopic.php?f=323&t=16909") }
+    as_rubymenu.add_item("Ruby Library Depot") {
+      AS_plugin_loader::browse_webdlg("http://rhin.crai.archi.fr/rld/") }
       
     as_rubymenu.add_separator
 
