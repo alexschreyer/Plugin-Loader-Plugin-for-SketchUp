@@ -40,9 +40,13 @@ History:        1.0 (3/9/2009) - first version
                 - Removed developer links (those are now in my Ruby Code Editor)
                 - Changed layout of browser a bit
                 - Fixed mac issues: dlg can't show modal, browser buttons dont work well
-        				1.3 (TBD):
-        				- Added RBZ loading option
+                1.3 (TBD):
+                - Added RBZ loading option
                 - Updates links
+                - Default file location is now userprofile
+                - Plugin remembers last folder
+                - Fixed up some dialogs and added more feedback
+                
 
 TODO List:      - Dialog doesn't show up modal on mac.
                 - Broser buttons don't work on mac.
@@ -121,68 +125,102 @@ HISTORY:
 "
 
 
-  #============================
+  # ============================
+  
+ 
+ 
+  # Get platform info
+  @as_su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'windows' :
+    ((Object::RUBY_PLATFORM =~ /darwin/i) ? 'mac' : 'other')
+  # Get plugin's directory as a start
+  @dir = File.dirname(__FILE__)
+  # Get user default directory
+  if @as_su_os == 'windows'
+    @dir = ENV['USERPROFILE']
+  else
+    @dir = ENV['HOME']
+  end
+  # Get working directory - set to user directory at first
+  @dir = Sketchup.read_default "as_PluginLoader", "last_file", @dir
+  @dir = @dir.split("/").join("\\") + "\\"
+  if @as_su_os != 'windows'
+    @dir = @dir.split("\\").join("/") + "/"
+  end
   
 
+
   def self.load_plugin_file
+  # Loads single plugin from RB file
+  
     # UI.messagebox "Depending on a plugin's programmed dependecies, it may not be possible to load it using this tool.\nPlease make sure all required files are in the same directory."
-    initdir = Sketchup.find_support_file("plugins")
     if Sketchup.version.to_f < 7.0
       filename = UI.openpanel "Select a SketchUp Ruby plugin file (with RB extension) to load it"
     else
-      filename = UI.openpanel ( "Select a SketchUp Ruby plugin file (with RB extension) to load it", initdir, "*.rb" )
+      filename = UI.openpanel ( "Select a SketchUp Ruby plugin file (with RB extension) to load it", @dir, "*.rb" )
     end
     # UI.messagebox filename.gsub("\\", "/")
     if filename
       begin
         load filename
+        UI.messagebox "Loaded RB script: \n#{filename}"
       rescue
-        UI.messagebox "Did not load RB script: \n#{filename}"
+        UI.messagebox "Could not load RB script: \n#{filename}"
       end
     end
+    
   end # load_plugin_file
-  
-  
-  def self.load_plugin_zip
-    if Sketchup.version.to_f < 7.0
-      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)"
-    else
-      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", "", "*.rbz;*.zip"
-    end
-    # UI.messagebox filename.gsub("\\", "/")
-    Sketchup.install_from_archive(filename)
-  end # load_plugin_zip  
 
-  
-  def as_require_all(dirname)
-    begin
-      rbfiles = Dir[File.join(dirname, "*.rb")]
-      $:.push dirname
-      rbfiles.each {|f| require f}
-    rescue
-      UI.messagebox "Could not load all files from: \n#{dirname}"
-    end
-  end # as_require_all
 
 
   def self.load_plugin_folder
-    UI.messagebox "Select any file in the folder where you would like to load all available ruby plugins."
-    initdir = Sketchup.find_support_file("plugins")
+  # Load all plugins from selected folder
+  
+    UI.messagebox "Select any file in the folder from where you would like to load all available RB plugins."
     if Sketchup.version.to_f < 7.0
       filename = UI.openpanel "Select any file - all plugins will be loaded from that folder"
     else
-      filename = UI.openpanel ( "Select any file - all plugins will be loaded from that folder", initdir, "*.rb" )
+      filename = UI.openpanel ( "Select any file - all plugins will be loaded from that folder", @dir, "*.rb" )
     end
     if filename
       foldername = File.dirname(filename)
-      as_require_all(foldername)
+      # Modified require_all function:
+      begin
+        rbfiles = Dir[File.join(foldername , "*.rb")]
+        $:.push foldername
+        rbfiles.each {|f| require f}
+        UI.messagebox "Loaded all RB scripts from: \n#{foldername}"
+      rescue
+        UI.messagebox "Could not load all files from: \n#{foldername}"
+      end
     end
-    # require_all(File.join(Sketchup.find_support_file("plugins"),"inactive"))
-    # TODO: How can we select a folder easily with Ruby???
+    
   end # load_plugin_folder
+  
+  
+  
+  def self.load_plugin_zip
+  # Installs a plugin permanently from a ZIP or RBZ file
+  
+    if Sketchup.version.to_f >= 8.0
+      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", @dir, "*.rbz;*.zip"
+      if filename
+        begin
+          Sketchup.install_from_archive(filename)
+        rescue
+          UI.messagebox "Couldn't install this plugin: \n#{filename}"
+        end
+      end
+    else
+      UI.messagebox "This tool can't install a plugin using your version of SketchUp. Please update to the latest version."
+    end
+    
+  end # load_plugin_zip    
+
 
 
   def self.browse_webdlg(url)
+  # Browse for plugins using webdialog
+  
     dlg = UI::WebDialog.new("Download a SketchUp plugin...", true,
       "Plugin Browser", 960, 750, 150, 150, true);
     dlg_html = "<html><head><meta http-equiv=\"MSThemeCompatible\" content=\"Yes\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;font-size:9pt;color:#fff;background-color:#666;overflow:hidden;\"><div id=\"header\" style=\"height:10%;padding:10px;\">"
@@ -199,9 +237,24 @@ HISTORY:
        load_plugin_file
      end
     end
+    
   end # browse_webdlg
   
   
+
+  def self.pluginloader_help
+  # Show the About dialog and do an update check
+  
+    begin
+      UI.messagebox HELPCONTENT, MB_MULTILINE, "Plugin Loader - About"
+    rescue
+      UI.messagebox "Couldn't display the About box.\nPlease go to my website for more information:\nhttp://www.alexschreyer.net/projects/plugin-loader-for-sketchup/"
+    end
+    
+  end # pluginloader_help
+
+
+
   # Inactive for now - searches custom search engine
   def self.search_google
     dlg = UI::WebDialog.new("Search Google for a SketchUp plugin...", true,
@@ -216,27 +269,24 @@ HISTORY:
      end
     end
   end # search_google
-
-
-  def self.pluginloader_help
-    begin
-      UI.messagebox HELPCONTENT, MB_MULTILINE, "Plugin Loader - About"
-    rescue
-      UI.messagebox "Couldn't display the About box.\nPlease go to my website for more information:\nhttp://www.alexschreyer.net/projects/plugin-loader-for-sketchup/"
-    end
-  end # pluginloader_help
+  
   
 
-end
+end # module
 
-# ==================================================== #
+
+
+# ====================================================
+
+
 
 if !file_loaded?(__FILE__)
 
-  # get the SketchUp plugins menu
+  # Get the SketchUp plugins menu
   plugins_menu = UI.menu("Plugins")
   as_rubymenu = plugins_menu.add_submenu("Plugin Loader")
 
+  # Add menu items
   if as_rubymenu
   
     as_rubymenu.add_item("Load single plugin (RB)") { AS_plugin_loader::load_plugin_file }
@@ -270,4 +320,4 @@ if !file_loaded?(__FILE__)
   # Let Ruby know we have loaded this file
   file_loaded(__FILE__)
 
-end
+end # if
