@@ -1,6 +1,6 @@
 =begin
 
-Copyright 2010, Alexander C. Schreyer
+Copyright 2010-2013, Alexander C. Schreyer
 All rights reserved
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -10,29 +10,34 @@ FITNESS FOR A PARTICULAR PURPOSE.
 License:        GPL (http://www.gnu.org/licenses/gpl.html)
 
 Author :        Alexander Schreyer, www.alexschreyer.net, mail@alexschreyer.net
+
 Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
 Name :          PluginLoader
-Version:        1.2
-Date :          11/3/2010
+
+Version:        1.3
+
+Date :          TBD
 
 Description :   Adds a helper submenu to the plugin menu to offer these
                 functions:
                 - Load single plugin or load all plugins in a folder
                 - Go to weblinks for plugin collections
                 - Go to weblinks for Ruby resources
+                
 Usage :         The web links are self-explanatory. All will open in an
                 external (system standard) browser. For the plugin loading
                 functions it is important to note that plugin files have a RB
                 extension.
 
-History:        1.0 (3/9/2009) - first version
-                1.1 (3/18/2009) - Changes:
+History:        1.0 (3/9/2009):
+                - first version
+                1.1 (3/18/2009):
                 - Added more plugin links and fixed some spelling
                 - Added browser buttons and better explanation
                 - Added help menu item and updated helpfile
                 - Changed menu order a bit
-                1.2 (11/3/2010) - Changes:
+                1.2 (11/3/2010):
                 - Renamed some menu items
                 - Added Google custom search
                 - Added link to extension manager
@@ -130,20 +135,18 @@ HISTORY:
  
  
   # Get platform info
-  @as_su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'windows' :
+  @su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'windows' :
     ((Object::RUBY_PLATFORM =~ /darwin/i) ? 'mac' : 'other')
-  # Get plugin's directory as a start
-  @dir = File.dirname(__FILE__)
-  # Get user default directory
-  if @as_su_os == 'windows'
-    @dir = ENV['USERPROFILE']
-  else
-    @dir = ENV['HOME']
-  end
-  # Get working directory - set to user directory at first
-  @dir = Sketchup.read_default "as_PluginLoader", "last_file", @dir
+    
+  # Get default directory as a start  
+  @dir = (ENV['USERPROFILE'] != nil) ? ENV['USERPROFILE'] : 
+    ((ENV['HOME'] != nil) ? ENV['HOME'] : File.dirname(__FILE__) )
+  # Get working directory from last opened if it exists
+  @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
+  @dir = @last_dir if @last_dir != nil
+  # Do some spring cleaning
   @dir = @dir.split("/").join("\\") + "\\"
-  if @as_su_os != 'windows'
+  if @su_os != 'windows'
     @dir = @dir.split("\\").join("/") + "/"
   end
   
@@ -158,13 +161,16 @@ HISTORY:
     else
       filename = UI.openpanel ( "Select a SketchUp Ruby plugin file (with RB extension) to load it", @dir, "*.rb" )
     end
-    # UI.messagebox filename.gsub("\\", "/")
     if filename
       begin
+        # Load this plugin
         load filename
-        UI.messagebox "Loaded RB script: \n#{filename}"
+        # Set directory as last used and give feedback
+        @dir = File.dirname(filename)
+        Sketchup.write_default "as_PluginLoader", "last_dir", @dir
+        UI.messagebox "Successfully loaded RB plugin: \n#{filename}"
       rescue
-        UI.messagebox "Could not load RB script: \n#{filename}"
+        UI.messagebox "Could not load RB plugin: \n#{filename}"
       end
     end
     
@@ -183,14 +189,17 @@ HISTORY:
     end
     if filename
       foldername = File.dirname(filename)
-      # Modified require_all function:
       begin
+        # Modified require_all function - loads all plugins in folder
         rbfiles = Dir[File.join(foldername , "*.rb")]
         $:.push foldername
         rbfiles.each {|f| require f}
-        UI.messagebox "Loaded all RB scripts from: \n#{foldername}"
+        # Set directory as last used and give feedback
+        @dir = foldername
+        Sketchup.write_default "as_PluginLoader", "last_dir", @dir
+        UI.messagebox "Successfully loaded all RB plugins from: \n#{foldername}"
       rescue
-        UI.messagebox "Could not load all files from: \n#{foldername}"
+        UI.messagebox "Could not load all RB plugins from: \n#{foldername}"
       end
     end
     
@@ -201,13 +210,17 @@ HISTORY:
   def self.load_plugin_zip
   # Installs a plugin permanently from a ZIP or RBZ file
   
-    if Sketchup.version.to_f >= 8.0
+    if Sketchup.version_number >= 8000999
       filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", @dir, "*.rbz;*.zip"
       if filename
         begin
+          # Install this plugin using SketchUp's built-in function
           Sketchup.install_from_archive(filename)
+          # Set directory as last used - no feedback here because this is done by installer
+          @dir = File.dirname(filename)
+          Sketchup.write_default "as_PluginLoader", "last_dir", @dir
         rescue
-          UI.messagebox "Couldn't install this plugin: \n#{filename}"
+          UI.messagebox "Couldn't install this RBZ/ZIP plugin: \n#{filename}"
         end
       end
     else
@@ -223,19 +236,21 @@ HISTORY:
   
     dlg = UI::WebDialog.new("Download a SketchUp plugin...", true,
       "Plugin Browser", 960, 750, 150, 150, true);
-    dlg_html = "<html><head><meta http-equiv=\"MSThemeCompatible\" content=\"Yes\"></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;font-size:9pt;color:#fff;background-color:#666;overflow:hidden;\"><div id=\"header\" style=\"height:10%;padding:10px;\">"
-    if !(Object::RUBY_PLATFORM.include? "darwin") # Only do this in Windows, javascript history doesn't work well on macs
+    dlg_html = "<html><head></head><body style=\"margin:0;padding:0;font-family:Arial,sans-serif;font-size:9pt;color:#fff;background-color:#666;overflow:hidden;\"><div id=\"header\" style=\"height:10%;padding:10px;\">"
+    if @su_os == 'windows'   # Only do this in Windows, javascript history doesn't work well on macs
       dlg_html += "<p style=\"width:20%;height:100%;float:left;\"><a href=\"javascript:history.back();\" style=\"color:#fff\">&laquo;BACK</a> | <a href=\"javascript:location.reload();\" style=\"color:#fff\">RELOAD</a> | <a href=\"javascript:history.forward()\" style=\"color:#fff\">NEXT&raquo;</a></p>"
     end
-    dlg_html += "<p style=\"width:80%;float:right;text-align:left;\">Browse to a plugin and save it somewhere. If you want the plugin to automatically load with SketchUp, save it in this folder: <b>#{Sketchup.find_support_file("plugins")}</b>. Otherwise you'll have to load it manually.<br />Plugins have a RB file extension (Ruby script). Some may come in a ZIP archive that must be unzipped first.</p></div><iframe style=\"clear:both;\" name=\"browser\" align=\"bottom\" id=\"browser\" src=\"#{url}\" width=\"100%\" height=\"90%\" scrolling=\"auto\" noresize=\"noresize\" frameborder=\"no\"></iframe></body></html>"
+    dlg_html += "<p style=\"width:80%;float:right;text-align:left;\">Browse to a plugin and save it somewhere. If you want the plugin to automatically load with SketchUp, save it in this folder: <b>#{Sketchup.find_support_file("plugins")}</b>. Otherwise you'll have to load it manually.<br />Plugins have a RB file extension (Ruby script). Some may come in a ZIP archive that must be unzipped first. To install a plugin, get the RBZ or ZIP file and then use the installer menu item.</p></div><iframe style=\"clear:both;\" name=\"browser\" align=\"bottom\" id=\"browser\" src=\"#{url}\" width=\"100%\" height=\"90%\" scrolling=\"auto\" noresize=\"noresize\" frameborder=\"no\"></iframe></body></html>"
     dlg.set_html(dlg_html)
-    dlg.navigation_buttons_enabled = true
+    dlg.navigation_buttons_enabled = false
     dlg.show_modal
-    if !(Object::RUBY_PLATFORM.include? "darwin") # Only do this in Windows, Mac doesn't show dlg modal
-     result = UI.messagebox "Do you want to load a plugin now?", MB_YESNO
-     if (result == 6) # Clicked Yes
-       load_plugin_file
-     end
+    
+    # Now ask if we should install/load the downloaded plugin
+    if @su_os == 'windows'    # Only do this in Windows, Mac doesn't show dlg modal
+      result = UI.messagebox "Do you want to load a plugin now?", MB_YESNO
+      if (result == 6) # Clicked Yes
+        load_plugin_file
+      end
     end
     
   end # browse_webdlg
@@ -252,23 +267,6 @@ HISTORY:
     end
     
   end # pluginloader_help
-
-
-
-  # Inactive for now - searches custom search engine
-  def self.search_google
-    dlg = UI::WebDialog.new("Search Google for a SketchUp plugin...", true,
-    "Plugin Browser", 900, 700, 150, 150, true);
-    dlg_html="<html><head></head><body style=\"margin:10px;padding:0;font-family:Arial,sans-serif;font-size:9pt;background-color:#fff;\"><div id=\"cse\" style=\"width: 100%;\">Loading</div><script src=\"http://www.google.com/jsapi\" type=\"text/javascript\"></script><script type=\"text/javascript\">google.load('search', '1', {language : 'en'});google.setOnLoadCallback(function(){var customSearchControl = new google.search.CustomSearchControl('004295665205910887318:3ovib9jeubq');customSearchControl.setResultSetSize(google.search.Search.SMALL_RESULTSET);var options = new google.search.DrawOptions();options.setAutoComplete(true);customSearchControl.draw('cse', options);}, true);</script></body></html>"
-    dlg.set_html(dlg_html)
-    dlg.show_modal
-    if !(Object::RUBY_PLATFORM.include? "darwin") # Only do this in Windows, Mac doesn't show dlg modal
-     result = UI.messagebox "Do you want to load a plugin now?", MB_YESNO
-     if (result == 6) # Clicked Yes
-       load_plugin_file
-     end
-    end
-  end # search_google
   
   
 
