@@ -14,8 +14,6 @@ Author :        Alexander Schreyer, www.alexschreyer.net, mail@alexschreyer.net
 
 Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
-Name :          PluginLoader
-
 Description :   Adds a helper submenu to the plugin menu to offer these
                 functions:
                 - Load single plugin or load all plugins in a folder
