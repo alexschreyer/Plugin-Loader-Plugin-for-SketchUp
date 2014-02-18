@@ -1,7 +1,7 @@
 # Loader for as_pluginloader/as_pluginloader.rb
 
-require 'sketchup.rb'
-require 'extensions.rb'
+require 'sketchup'
+require 'extensions'
 
 as_pluginloader = SketchupExtension.new "Plugin Loader", "as_pluginloader/as_pluginloader.rb"
 as_pluginloader.copyright= 'Copyright 2014 Alexander C. Schreyer'

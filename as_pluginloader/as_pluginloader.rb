@@ -60,8 +60,7 @@ History:        1.0 (3/9/2009):
                 - Fixed saving of file paths to registry
                 
 
-TODO List:      - Dialog doesn't show up modal on mac.
-                - Folder selection is a bit workaroundish. A standard
+TODO List:      - Folder selection is a bit workaroundish. A standard
                   OS directory picker would be better.
 
 =end
