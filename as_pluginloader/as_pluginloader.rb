@@ -1,6 +1,6 @@
 =begin
 
-Copyright 2013, Alexander C. Schreyer
+Copyright 2014, Alexander C. Schreyer
 All rights reserved
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -15,9 +15,9 @@ Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
 Name :          PluginLoader
 
-Version:        1.4
+Version:        1.5
 
-Date :          5/16/2013
+Date :          2/17/2014
 
 Description :   Adds a submenu to the Plugins menu to offer these
                 functions:
@@ -56,6 +56,8 @@ History:        1.0 (3/9/2009):
                 - Fixed multiple loader code
                 1.4 (5/16/2013):
                 - Removed browser feature to comply with Trimble rules
+                1.5 (2/17/2014):
+                - Fixed saving of file paths to registry
                 
 
 TODO List:      - Dialog doesn't show up modal on mac.
@@ -65,20 +67,19 @@ TODO List:      - Dialog doesn't show up modal on mac.
 =end
 
 
-require 'sketchup.rb'
+require 'sketchup'
 
 module AS_plugin_loader
 
 
-  #============================
-
-
-  HELPCONTENT =
-
-"Plugin Loader for SketchUp
+  # ============================
+  
+  
+  # Get help content
+  
+  HELPCONTENT = "
+Plugin Loader for SketchUp
 ==========================
-
-v.1.4 (5/16/2013)
 
 by Alexander Schreyer (www.alexschreyer.net)
 
@@ -133,17 +134,14 @@ If you want to load this tool on-demand (instead of installing it), save its fil
 DISCLAIMER:
 ===========
 
-THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  
 "
 
 
-  # ============================
-  
- 
- 
   # Get platform info
-  @su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'windows' :
+  @su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'win' :
     ((Object::RUBY_PLATFORM =~ /darwin/i) ? 'mac' : 'other')
+    
     
   # Get default directory as a start  
   @dir = (ENV['USERPROFILE'] != nil) ? ENV['USERPROFILE'] : 
@@ -152,11 +150,7 @@ THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIE
   @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
   @dir = @last_dir if @last_dir != nil
   # Do some spring cleaning
-  @dir = @dir.split("/").join("\\") + "\\"
-  if @su_os != 'windows'
-    @dir = @dir.split("\\").join("/") + "/"
-  end
-  
+  @dir = @dir.tr("\\","/")
 
 
   def self.load_plugin_file
@@ -174,7 +168,7 @@ THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIE
         load filename
         # Set directory as last used and give feedback
         @dir = File.dirname(filename)
-        Sketchup.write_default "as_PluginLoader", "last_dir", @dir
+        Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
         UI.messagebox "Successfully loaded RB plugin: \n#{filename}"
       rescue => e
         UI.messagebox "Could not load RB plugin: \n#{filename}\n\nError: #{e}"
@@ -207,7 +201,7 @@ THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIE
         rbfiles.each {|f| load f}
         # Set directory as last used and give feedback 
         @dir = foldername
-        Sketchup.write_default "as_PluginLoader", "last_dir", @dir
+        Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
         UI.messagebox "Successfully loaded all RB plugins from: \n#{foldername}"
       rescue => e
         UI.messagebox "Could not load all RB plugins from: \n#{foldername}\n\nError: #{e}"
@@ -230,7 +224,7 @@ THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIE
           Sketchup.install_from_archive(filename)
           # Set directory as last used - no feedback here because this is done by installer
           @dir = File.dirname(filename)
-          Sketchup.write_default "as_PluginLoader", "last_dir", @dir
+          Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
         rescue => e
           UI.messagebox "Couldn't install this RBZ or ZIP plugin: \n#{filename}\n\nError: #{e}"
         end
@@ -244,7 +238,7 @@ THIS SOFTWARE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIE
 
 
   def self.pluginloader_help
-  # Show the About dialog and do an update check
+  # Show the About dialog
   
     begin
       UI.messagebox HELPCONTENT, MB_MULTILINE, "Plugin Loader - About"
