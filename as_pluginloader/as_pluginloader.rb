@@ -58,6 +58,7 @@ History:        1.0 (3/9/2009):
                 - Removed browser feature to comply with Trimble rules
                 1.5 (2/17/2014):
                 - Fixed saving of file paths to registry
+                - Code cleanup
                 
 
 TODO List:      - Folder selection is a bit workaroundish. A standard
@@ -66,7 +67,14 @@ TODO List:      - Folder selection is a bit workaroundish. A standard
 =end
 
 
+# ============================
+
+
 require 'sketchup'
+
+
+# ============================
+
 
 module AS_plugin_loader
 
@@ -74,7 +82,7 @@ module AS_plugin_loader
   # ============================
   
   
-  # Get help content
+  # Set some variables
   
   HELPCONTENT = "
 Plugin Loader for SketchUp
@@ -135,21 +143,19 @@ DISCLAIMER:
 
 THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  
 "
-
-
-  # Get platform info
-  @su_os = (Object::RUBY_PLATFORM =~ /mswin/i) ? 'win' :
-    ((Object::RUBY_PLATFORM =~ /darwin/i) ? 'mac' : 'other')
     
     
-  # Get default directory as a start  
+  # Get default user directory as a start  
   @dir = (ENV['USERPROFILE'] != nil) ? ENV['USERPROFILE'] : 
-    ((ENV['HOME'] != nil) ? ENV['HOME'] : File.dirname(__FILE__) )
+         ((ENV['HOME'] != nil) ? ENV['HOME'] : File.dirname(__FILE__) )
   # Get working directory from last opened if it exists
   @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
   @dir = @last_dir if @last_dir != nil
-  # Do some spring cleaning
+  # Do some spring cleaning on the path
   @dir = @dir.tr("\\","/")
+  
+  
+  # ============================
 
 
   def self.load_plugin_file
@@ -175,7 +181,9 @@ THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
     end
     
   end # load_plugin_file
-
+  
+  
+  # ============================
 
 
   def self.load_plugin_folder
@@ -210,6 +218,8 @@ THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
   end # load_plugin_folder
   
   
+  # ============================  
+  
   
   def self.load_plugin_zip
   # Installs a plugin permanently from a ZIP or RBZ file
@@ -232,8 +242,10 @@ THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
       UI.messagebox "This tool can't install a plugin using your version of SketchUp. Please update to the latest version."
     end
     
-  end # load_plugin_zip    
+  end # load_plugin_zip  
 
+
+  # ============================
 
 
   def self.pluginloader_help
@@ -248,39 +260,36 @@ THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
   end # pluginloader_help
   
   
+  # ============================
+  
+  
+  if !file_loaded?(__FILE__)
+  
+    # Get the SketchUp plugins menu
+    plugins_menu = UI.menu("Plugins")
+    as_rubymenu = plugins_menu.add_submenu("Plugin Loader")
+  
+    # Add menu items
+    if as_rubymenu
+    
+      as_rubymenu.add_item("Load single plugin (RB)") { AS_plugin_loader::load_plugin_file }
+      as_rubymenu.add_item("Load all plugins from a folder (RB)") { AS_plugin_loader::load_plugin_folder }
+  
+      as_rubymenu.add_separator
+      
+      as_rubymenu.add_item("Install single plugin (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip }
+      as_rubymenu.add_item("Manage installed plugins") { UI.show_preferences "Extensions" }
+        
+      as_rubymenu.add_separator
+  
+      as_rubymenu.add_item("About") { AS_plugin_loader::pluginloader_help }
+    
+     end
+    
+    # Let Ruby know we have loaded this file
+    file_loaded(__FILE__)
+  
+  end 
+  
 
 end # module
-
-
-
-# ====================================================
-
-
-
-if !file_loaded?(__FILE__)
-
-  # Get the SketchUp plugins menu
-  plugins_menu = UI.menu("Plugins")
-  as_rubymenu = plugins_menu.add_submenu("Plugin Loader")
-
-  # Add menu items
-  if as_rubymenu
-  
-    as_rubymenu.add_item("Load single plugin (RB)") { AS_plugin_loader::load_plugin_file }
-    as_rubymenu.add_item("Load all plugins from a folder (RB)") { AS_plugin_loader::load_plugin_folder }
-
-    as_rubymenu.add_separator
-    
-    as_rubymenu.add_item("Install single plugin (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip }
-    as_rubymenu.add_item("Manage installed plugins") { UI.show_preferences "Extensions" }
-      
-    as_rubymenu.add_separator
-
-    as_rubymenu.add_item("About") { AS_plugin_loader::pluginloader_help }
-  
-   end
-  
-  # Let Ruby know we have loaded this file
-  file_loaded(__FILE__)
-
-end # if
