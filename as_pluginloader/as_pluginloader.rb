@@ -15,9 +15,9 @@ Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
 Name :          PluginLoader
 
-Version:        1.5
+Version:        1.6
 
-Date :          2/17/2014
+Date :          2/11/2015
 
 Description :   Adds a submenu to the Plugins menu to offer these
                 functions:
@@ -59,10 +59,12 @@ History:        1.0 (3/9/2009):
                 1.5 (2/17/2014):
                 - Fixed saving of file paths to registry
                 - Code cleanup
+                1.6 (2/11/2015):
+                - Cleaned up code
+                - Added SU 15's dialog selector
+                - Renamed plugin to extension where applicable
                 
-
-TODO List:      - Folder selection is a bit workaroundish. A standard
-                  OS directory picker would be better.
+TODO List:      
 
 =end
 
@@ -76,220 +78,182 @@ require 'sketchup'
 # ============================
 
 
-module AS_plugin_loader
+module AS_extensions
 
-
-  # ============================
+  module AS_plugin_loader
   
   
-  # Set some variables
-  
-  HELPCONTENT = "
-Plugin Loader for SketchUp
-==========================
-
-by Alexander Schreyer (www.alexschreyer.net)
-
-------------------------------------------------
-
-DESCRIPTION:
-============
-
-Adds a submenu to the Plugins menu to offer these functions:
-- Load single RB plugin (on-demand)
-- Load all RB plugins from a folder (on-demand)
-- Install plugin from RBZ or ZIP file
-
-
-WEBSITE:
-========
-
-http://www.alexschreyer.net/projects/plugin-loader-for-sketchup/
-
-Subscribe to the comments on the above page so that you can be notified when a new version is available.
-
-
-USE:
-====
-
-On-demand loading of plugins (single or multiple) -- Your plugin files (with RB extension) may be loaded from any location (hard disk, USB or network drive). If they are in the main SketchUp plugin folder, then you may be able to use this option to reload them (since they were already loaded when SketchUp started). For the multiple plugin option, simply select any file within a folder and all contained plugins will be loaded.
-Some (especially the more complex) plugins cannot be loaded using this method. In those cases, you'll have to install them into SketchUp's main plugins folder.
-
-Installing plugins -- This is just another way to permanently install plugins from RBZ or ZIP files.
-
-
-ORGANIZING PLUGINS:
-===================
-
-After you download a plugin, place it into a dedicated location (as described above) by copying its single RB file or extracting the archive it came in (from a ZIP file).
-If the plugin only came as an RBZ, then re-name the RBZ to ZIP and extract all of the files. Alternatively, install the plugin into SketchUp's main plugins folder and then move its files (one RB file and any subfolders) to another location.
-
-Your installed plugins are located here:
-"+Sketchup.find_support_file("plugins")+"
-
-Afterwards, plugins can be loaded from any computer-accessible location using this tool.
-
-
-LOADING THIS TOOL:
-==================
-
-If you want to load this tool on-demand (instead of installing it), save its files anywhere (e.g. on your USB memory stick - the H: drive in this example) and then load it into SketchUp (no restart required!) by opening the Ruby Console (Window > Ruby Console) and entering this (modify for your setup):
-
-  load \"H:\\PluginLoader.rb\"
-
-
-DISCLAIMER:
-===========
-
-THIS SOFTWARE IS PROVIDED 'AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  
-"
+    # ============================
     
     
-  # Get default user directory as a start  
-  @dir = (ENV['USERPROFILE'] != nil) ? ENV['USERPROFILE'] : 
-         ((ENV['HOME'] != nil) ? ENV['HOME'] : File.dirname(__FILE__) )
-  # Get working directory from last opened if it exists
-  @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
-  @dir = @last_dir if @last_dir != nil
-  # Do some spring cleaning on the path
-  @dir = @dir.tr("\\","/")
+    # Get default user directory as a start  
+    @dir = (ENV['USERPROFILE'] != nil) ? ENV['USERPROFILE'] : 
+           ((ENV['HOME'] != nil) ? ENV['HOME'] : File.dirname(__FILE__) )
+    # Get working directory from last opened if it exists
+    @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
+    @dir = @last_dir if @last_dir != nil
+    # Do some spring cleaning on the path
+    @dir = @dir.tr("\\","/")
+    
+    
+    # ============================
   
   
-  # ============================
-
-
-  def self.load_plugin_file
-  # Loads single plugin from RB file
-  
-    if Sketchup.version.to_f < 7.0
-      filename = UI.openpanel "Select a SketchUp Ruby plugin file (with RB extension) to load it"
-    else
-      filename = UI.openpanel( "Select a SketchUp Ruby plugin file (with RB extension) to load it", @dir, "*.rb" )
-    end
-    if filename
-      begin
-        raise "Selected file is not an RB file." if File.extname(filename) != ".rb"
-        # Load this plugin
-        load filename
-        # Set directory as last used and give feedback
-        @dir = File.dirname(filename)
-        Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
-        UI.messagebox "Successfully loaded RB plugin: \n#{filename}"
-      rescue => e
-        UI.messagebox "Could not load RB plugin: \n#{filename}\n\nError: #{e}"
+    def self.load_plugin_file
+    # Loads single plugin from RB file
+    
+      # Pick an RB file
+      if Sketchup.version.to_f < 7.0
+        f = UI.openpanel "Select a SketchUp Ruby extension file (with RB extension) to load it"
+      else
+        f = UI.openpanel( "Select a SketchUp Ruby extension file (with RB extension) to load it", @dir, "*.rb" )
       end
-    end
-    
-  end # load_plugin_file
   
-  
-  # ============================
-
-
-  def self.load_plugin_folder
-  # Load all plugins from selected folder
-  
-    UI.messagebox "Select any file in the folder from where you would like to load all available RB plugins."
-    if Sketchup.version.to_f < 7.0
-      filename = UI.openpanel "Select any file - all plugins will be loaded from that folder"
-    else
-      filename = UI.openpanel( "Select any file - all plugins will be loaded from that folder", @dir, "*.rb" )
-    end
-    if filename
-      foldername = File.dirname(filename)
-      begin
-        # Modified require_all function - loads all plugins in folder
-        Dir.chdir(foldername)
-        rbfiles = []
-        rbfiles = Dir["*.rb"]
-        raise "Nothing to load in this directory." if (rbfiles.length < 1)
-        p rbfiles
-        $:.push foldername
-        rbfiles.each {|f| load f}
-        # Set directory as last used and give feedback 
-        @dir = foldername
-        Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
-        UI.messagebox "Successfully loaded all RB plugins from: \n#{foldername}"
-      rescue => e
-        UI.messagebox "Could not load all RB plugins from: \n#{foldername}\n\nError: #{e}"
-      end
-    end
-    
-  end # load_plugin_folder
-  
-  
-  # ============================  
-  
-  
-  def self.load_plugin_zip
-  # Installs a plugin permanently from a ZIP or RBZ file
-  
-    if Sketchup.version_number >= 8000999
-      filename = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", @dir, "*.rbz;*.zip"
-      if filename
+      if f
         begin
-          raise "Selected file is not an RBZ or ZIP file." if !(File.extname(filename).include? ".rbz" or File.extname(filename).include? ".zip")
-          # Install this plugin using SketchUp's built-in function
-          Sketchup.install_from_archive(filename)
-          # Set directory as last used - no feedback here because this is done by installer
-          @dir = File.dirname(filename)
+        
+          raise "Selected file is not an RB file." if File.extname(f) != ".rb"
+          
+          # Load this plugin
+          d = File.dirname(f) 
+          $:.push d
+          load f
+          # Set directory as last used and give feedback
+          @dir = d
           Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
+          UI.messagebox "Successfully loaded Extension: \n\n#{f.upcase!}\n\nIt will remain available until you restart SketchUp."
+          
         rescue => e
-          UI.messagebox "Couldn't install this RBZ or ZIP plugin: \n#{filename}\n\nError: #{e}"
+        
+          UI.messagebox "Could not load extension: \n#{f.upcase!}\n\nError: #{e}"
+          
         end
       end
-    else
-      UI.messagebox "This tool can't install a plugin using your version of SketchUp. Please update to the latest version."
-    end
-    
-  end # load_plugin_zip  
-
-
-  # ============================
-
-
-  def self.pluginloader_help
-  # Show the About dialog
-  
-    begin
-      UI.messagebox HELPCONTENT, MB_MULTILINE, "Plugin Loader - About"
-    rescue => e
-      UI.messagebox "Couldn't display the About box.\nPlease go to my website for more information:\nhttp://www.alexschreyer.net/projects/plugin-loader-for-sketchup/\n\nError: #{e}"
-    end
-    
-  end # pluginloader_help
-  
-  
-  # ============================
-  
-  
-  if !file_loaded?(__FILE__)
-  
-    # Get the SketchUp plugins menu
-    plugins_menu = UI.menu("Plugins")
-    as_rubymenu = plugins_menu.add_submenu("Plugin Loader")
-  
-    # Add menu items
-    if as_rubymenu
-    
-      as_rubymenu.add_item("Load single plugin (RB)") { AS_plugin_loader::load_plugin_file }
-      as_rubymenu.add_item("Load all plugins from a folder (RB)") { AS_plugin_loader::load_plugin_folder }
-  
-      as_rubymenu.add_separator
       
-      as_rubymenu.add_item("Install single plugin (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip }
-      as_rubymenu.add_item("Manage installed plugins") { UI.show_preferences "Extensions" }
+    end # load_plugin_file
+    
+    
+    # ============================
+  
+  
+    def self.load_plugin_folder
+    # Load all plugins from selected folder
+    
+      begin
+      
+        # Get directory of RB files. Can't use directory selection if less than 15
+        v = Sketchup.version.to_f
+        if v >= 15.0
+          d = UI.select_directory(title: "Select Folder with SketchUp extensions (RB files) to load")
+        elsif v >= 7.0    
+          f = UI.openpanel( "Select any file - all extensions will be loaded from that folder", @dir, "*.rb" )
+          d = File.dirname(f)    
+        else       
+          f = UI.openpanel "Select any file - all extensions will be loaded from that folder"
+          d = File.dirname(f)    
+        end
         
-      as_rubymenu.add_separator
-  
-      as_rubymenu.add_item("About") { AS_plugin_loader::pluginloader_help }
+        raise "No valid directory supplied." if d == nil
     
-     end
+        # Get all of the RB files in the directory
+        rbfiles = Array.new
+        Dir.chdir(d)
+        rbfiles = Dir.glob("*.rb")
+     
+        raise "No valid RB files in directory." if rbfiles.empty?
+  
+        # Modified require_all function - loads all plugins in folder
+        # p rbfiles
+        $:.push d
+        rbfiles.each {|f| load f}
+        # Set directory as last used and give feedback 
+        @dir = d
+        Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
+        UI.messagebox "Successfully loaded these extensions: \n\n#{rbfiles.join("\n").upcase!}\n\nThey will remain available until you restart SketchUp."
+        
+      rescue => e
+      
+        UI.messagebox "Did not load extensions.\n\nError: #{e}"
+      
+      end    
+      
+    end # load_plugin_folder
     
-    # Let Ruby know we have loaded this file
-    file_loaded(__FILE__)
+    
+    # ============================  
+    
+    
+    def self.load_plugin_zip
+    # Installs a plugin permanently from a ZIP or RBZ file
+    
+      f = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", @dir, "*.rbz;*.zip"
+      
+      if f
+        begin
+        
+          raise "Selected file is not an RBZ or ZIP file." if !(File.extname(f).include? ".rbz" or File.extname(f).include? ".zip")
+          
+          # Install this plugin using SketchUp's built-in function
+          Sketchup.install_from_archive(f)
+          # Set directory as last used - no feedback here because this is done by installer
+          @dir = File.dirname(f)
+          Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
+          
+        rescue => e
+        
+          UI.messagebox "Couldn't install this RBZ or ZIP extension: \n#{f.upcase!}\n\nError: #{e}"
+          
+        end
+      end
+      
+    end # load_plugin_zip  
   
-  end 
   
+    # ============================
+  
+  
+    def self.pluginloader_help
+    # Show the website as an About dialog
+    
+      dlg = UI::WebDialog.new('Plugin/Extension Loader Help', true,'AS_pluginloader_Help', 1100, 800, 150, 150, true)
+      dlg.set_url('http://www.alexschreyer.net/projects/plugin-loader-for-sketchup')
+      dlg.show
+      
+    end # pluginloader_help
+    
+    
+    # ============================
+    
+    
+    if !file_loaded?(__FILE__)
+    
+      # Get the SketchUp plugins menu
+      plugins_menu = UI.menu("Plugins")
+      as_rubymenu = plugins_menu.add_submenu("Plugin/Extension Loader")
+    
+      # Add menu items
+      if as_rubymenu
+      
+        as_rubymenu.add_item("Load single plugin/extension (RB)") { AS_plugin_loader::load_plugin_file }
+        as_rubymenu.add_item("Load all plugins/extensions from a folder (RB)") { AS_plugin_loader::load_plugin_folder }
+    
+        as_rubymenu.add_separator
+        
+        as_rubymenu.add_item("Install single plugin/extension (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip } if Sketchup.version_number >= 8000999
+        as_rubymenu.add_item("Manage installed plugins/extensions") { UI.show_preferences "Extensions" }   
+        as_rubymenu.add_item("About") { AS_plugin_loader::pluginloader_help }
+      
+       end
+      
+      # Let Ruby know we have loaded this file
+      file_loaded(__FILE__)
+    
+    end 
+    
 
+    # ============================
+    
+  
+  end # module
+  
 end # module
