@@ -1,74 +1,5 @@
-=begin
-
-Copyright 2014, Alexander C. Schreyer
-All rights reserved
-
-THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
-INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE.
-
-License:        GPL (http://www.gnu.org/licenses/gpl.html)
-
-Author :        Alexander Schreyer, www.alexschreyer.net, mail@alexschreyer.net
-
-Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
-
-Name :          PluginLoader
-
-Version:        1.6
-
-Date :          2/11/2015
-
-Description :   Adds a submenu to the Plugins menu to offer these
-                functions:
-                - Load single RB plugin (on-demand)
-                - Load all RB plugins from a folder (on-demand)
-                - Install plugin from RBZ or ZIP file
-                
-Usage :         Place plugins and support files into a convenient location
-                (e.g. a folder on a USB drive). Make sure correct plugin folder structure is kept.
-                Then load plugins using this tool from that lcation on-demand. After restarting
-                SketchUp, your plugin will be unloaded again.
-
-History:        1.0 (3/9/2009):
-                - first version
-                1.1 (3/18/2009):
-                - Added more plugin links and fixed some spelling
-                - Added browser buttons and better explanation
-                - Added help menu item and updated helpfile
-                - Changed menu order a bit
-                1.2 (11/3/2010):
-                - Renamed some menu items
-                - Added Google custom search
-                - Added link to extension manager
-                - Reformatted code and added module
-                - Removed developer links (those are now in my Ruby Code Editor)
-                - Changed layout of browser a bit
-                - Fixed mac issues: dlg can't show modal, browser buttons dont work well
-                1.3 (5/15/2013):
-                - Added RBZ installing option
-                - Updated archive links
-                - Default file location is now userprofile
-                - Plugin remembers last folder
-                - Fixed up some dialogs and added more feedback
-                - Now reports error if problem occurs
-                - New folder structure
-                - Fixed multiple loader code
-                1.4 (5/16/2013):
-                - Removed browser feature to comply with Trimble rules
-                1.5 (2/17/2014):
-                - Fixed saving of file paths to registry
-                - Code cleanup
-                1.6 (2/11/2015):
-                - Cleaned up code
-                - Added SU 15's dialog selector
-                - Renamed plugin to extension where applicable
-                
-TODO List:      
-
-=end
-
-
+# ============================
+# Main file for Plugin Loader
 # ============================
 
 
@@ -78,9 +9,9 @@ require 'sketchup'
 # ============================
 
 
-module AS_extensions
+module AS_Extensions
 
-  module AS_plugin_loader
+  module AS_PluginLoader
   
   
     # ============================
@@ -144,16 +75,19 @@ module AS_extensions
         # Get directory of RB files. Can't use directory selection if less than 15
         v = Sketchup.version.to_f
         if v >= 15.0
-          d = UI.select_directory(title: "Select Folder with SketchUp extensions (RB files) to load")
+          UI.messagebox "Select Folder with multiple SketchUp extensions (RB files) to load"
+          d = UI.select_directory  # Title syntax not compatible with SU 8
         elsif v >= 7.0    
-          f = UI.openpanel( "Select any file - all extensions will be loaded from that folder", @dir, "*.rb" )
+          UI.messagebox "Select any file in a folder with multiple SketchUp extensions - all will be loaded from that folder"
+          f = UI.openpanel( "Select RB file", @dir, "*.rb" )
           d = File.dirname(f)    
         else       
-          f = UI.openpanel "Select any file - all extensions will be loaded from that folder"
+          UI.messagebox "Select any file in a folder with multiple SketchUp extensions - all will be loaded from that folder"
+          f = UI.openpanel "Select RB file"
           d = File.dirname(f)    
         end
         
-        raise "No valid directory supplied." if d == nil
+        raise if d == nil
     
         # Get all of the RB files in the directory
         rbfiles = Array.new
@@ -173,7 +107,7 @@ module AS_extensions
         
       rescue => e
       
-        UI.messagebox "Did not load extensions.\n\nError: #{e}"
+        UI.messagebox "Did not load extensions.\n\nError: #{e}"  if !e.empty?
       
       end    
       
@@ -212,14 +146,14 @@ module AS_extensions
     # ============================
   
   
-    def self.pluginloader_help
+    def self.show_help
     # Show the website as an About dialog
     
-      dlg = UI::WebDialog.new('Plugin/Extension Loader Help', true,'AS_pluginloader_Help', 1100, 800, 150, 150, true)
+      dlg = UI::WebDialog.new('Plugin/Extension Loader - Help', true,'AS_pluginloader_Help', 1100, 800, 150, 150, true)
       dlg.set_url('http://www.alexschreyer.net/projects/plugin-loader-for-sketchup')
       dlg.show
       
-    end # pluginloader_help
+    end # show_help
     
     
     # ============================
@@ -228,20 +162,20 @@ module AS_extensions
     if !file_loaded?(__FILE__)
     
       # Get the SketchUp plugins menu
-      plugins_menu = UI.menu("Plugins")
-      as_rubymenu = plugins_menu.add_submenu("Plugin/Extension Loader")
+      as_rubymenu = UI.menu("Plugins").add_submenu("Plugin/Extension Loader")
     
       # Add menu items
       if as_rubymenu
       
-        as_rubymenu.add_item("Load single plugin/extension (RB)") { AS_plugin_loader::load_plugin_file }
-        as_rubymenu.add_item("Load all plugins/extensions from a folder (RB)") { AS_plugin_loader::load_plugin_folder }
+        as_rubymenu.add_item("Load single plugin/extension (RB)") { AS_PluginLoader::load_plugin_file }
+        as_rubymenu.add_item("Load all plugins/extensions from a folder (RB)") { AS_PluginLoader::load_plugin_folder }
     
         as_rubymenu.add_separator
         
-        as_rubymenu.add_item("Install single plugin/extension (RBZ or ZIP)") { AS_plugin_loader::load_plugin_zip } if Sketchup.version_number >= 8000999
+        as_rubymenu.add_item("Install single plugin/extension (RBZ or ZIP)") { AS_PluginLoader::load_plugin_zip } if Sketchup.version_number >= 8000999
         as_rubymenu.add_item("Manage installed plugins/extensions") { UI.show_preferences "Extensions" }   
-        as_rubymenu.add_item("About") { AS_plugin_loader::pluginloader_help }
+        as_rubymenu.add_item("Open SketchUp's Plugins folder") { UI.openURL("file:///#{Sketchup.find_support_file('Plugins')}") }
+        as_rubymenu.add_item("Help") { AS_PluginLoader::show_help }
       
        end
       
@@ -254,6 +188,9 @@ module AS_extensions
     # ============================
     
   
-  end # module
+  end # module AS_PluginLoader
   
-end # module
+end # module AS_Extensions
+
+
+# ============================
