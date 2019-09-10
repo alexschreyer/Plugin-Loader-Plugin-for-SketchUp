@@ -67,28 +67,55 @@ History:        1.0 (3/9/2009):
                 - Added plugins directory menu item
                 - Code cleanup
                 - SketchUp 8 syntax error fix
+                1.8 (TBD):
+                - Drop pre-SU8 support
+                - Code cleanup
+                - Minor bugfixes
+                - Open dialog file selector update
+                - Updated help website location and dialog
+                - Drop word "plugin" in favor of "extension"
+                - Show Extension Manager instead of preferences
+                
 
 TODO List:
 
 =end
 
 
-# ============================
+# ========================
 
 
-require 'sketchup'
-require 'extensions'
+require 'sketchup.rb'
+require 'extensions.rb'
 
 
-# ============================
+# ========================
 
 
-as_pluginloader = SketchupExtension.new "Plugin/Extension Loader", "as_pluginloader/as_pluginloader.rb"
-as_pluginloader.copyright= 'Copyright 2009-2015 Alexander C. Schreyer'
-as_pluginloader.creator= 'Alexander C. Schreyer, www.alexschreyer.net'
-as_pluginloader.version = '1.7'
-as_pluginloader.description = "Adds a menu item to the Plugins/Extensions menu, which allows for on-demand loading of plugins from any location."
-Sketchup.register_extension as_pluginloader, true
+module AS_Extensions
+
+  module AS_PluginLoader
+  
+    @extversion           = "1.7"
+    @exttitle             = "Ruby / Extension Loader"
+    @extname              = "as_pluginloader"
+    
+    @extdir = File.dirname(__FILE__)
+    @extdir.force_encoding('UTF-8') if @extdir.respond_to?(:force_encoding)
+    
+    loader = File.join( @extdir , @extname , "as_pluginloader.rb" )
+   
+    extension             = SketchupExtension.new( @exttitle , loader )
+    extension.copyright   = "Copyright 2009-#{Time.now.year} Alexander C. Schreyer"
+    extension.creator     = "Alexander C. Schreyer, www.alexschreyer.net"
+    extension.version     = @extversion
+    extension.description = "Adds a menu item to the Plugins/Extensions menu, which allows for on-demand loading of SketchUp extensions from any location."
+    
+    Sketchup.register_extension( extension , true )
+         
+  end  # module AS_PluginLoader
+  
+end  # module AS_Extensions
 
 
-# ============================
+# ========================

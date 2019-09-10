@@ -24,7 +24,8 @@ module AS_Extensions
     @last_dir = Sketchup.read_default "as_PluginLoader", "last_dir"
     @dir = @last_dir if @last_dir != nil
     # Do some spring cleaning on the path
-    @dir = @dir.tr("\\","/")
+    @dir = File.expand_path( @dir )
+    # @dir = @dir.tr("\\","/") TODO: Can go?
     
     
     # ============================
@@ -33,30 +34,28 @@ module AS_Extensions
     def self.load_plugin_file
     # Loads single plugin from RB file
     
-      # Pick an RB file
-      if Sketchup.version.to_f < 7.0
-        f = UI.openpanel "Select a SketchUp Ruby extension file (with RB extension) to load it"
-      else
-        f = UI.openpanel( "Select a SketchUp Ruby extension file (with RB extension) to load it", @dir, "*.rb" )
-      end
+      # Pick an RB file      
+      f = UI.openpanel( "Select the main (top level) Ruby / Extension file to load it", @dir, "Ruby Files|*.rb|All Files|*.*||" )
   
       if f
         begin
         
-          raise "Selected file is not an RB file." if File.extname(f) != ".rb"
+          raise "Selected file is not a Ruby file." if File.extname(f) != ".rb"
           
           # Load this plugin
-          d = File.dirname(f) 
-          $:.push d
+          d = File.dirname( f )
+          d = File.expand_path( d )
+          $: << d unless $:.include? d
           load f
+          
           # Set directory as last used and give feedback
           @dir = d
           Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
-          UI.messagebox "Successfully loaded Extension: \n\n#{f.upcase!}\n\nIt will remain available until you restart SketchUp."
+          UI.messagebox "Successfully loaded Ruby file / extension at: \n\n#{f}\n\nIf this is an extension, then it will remain available until you exit SketchUp."
           
         rescue => e
         
-          UI.messagebox "Could not load extension: \n#{f.upcase!}\n\nError: #{e}"
+          UI.messagebox "Could not load Ruby file / extension at: \n#{f}\n\nError: #{e}"
           
         end
       end
@@ -75,39 +74,38 @@ module AS_Extensions
         # Get directory of RB files. Can't use directory selection if less than 15
         v = Sketchup.version.to_f
         if v >= 15.0
-          UI.messagebox "Select Folder with multiple SketchUp extensions (RB files) to load"
-          d = UI.select_directory  # Title syntax not compatible with SU 8
-        elsif v >= 7.0    
-          UI.messagebox "Select any file in a folder with multiple SketchUp extensions - all will be loaded from that folder"
-          f = UI.openpanel( "Select RB file", @dir, "*.rb" )
-          d = File.dirname(f)    
-        else       
-          UI.messagebox "Select any file in a folder with multiple SketchUp extensions - all will be loaded from that folder"
-          f = UI.openpanel "Select RB file"
-          d = File.dirname(f)    
+          d = UI.select_directory(
+            title: "Select folder containing the main Ruby files / extensions (RB files) to load",
+            directory: @dir
+          )
+        else   
+          UI.messagebox( "Select any file in a folder containing the main Ruby files / extensions (RB files) - everything will be loaded from that folder" )
+          f = UI.openpanel( "Select any file", @dir, "*.rb" )
+          d = File.dirname( f )    
         end
         
         raise if d == nil
+        
+        d = File.expand_path( d )
+        Dir.chdir( d )  
+        $: << d unless $:.include? d    
     
         # Get all of the RB files in the directory
         rbfiles = Array.new
-        Dir.chdir(d)
         rbfiles = Dir.glob("*.rb")
-     
         raise "No valid RB files in directory." if rbfiles.empty?
   
-        # Modified require_all function - loads all plugins in folder
-        # p rbfiles
-        $:.push d
+        # Modified require_all function - loads all files in folder
         rbfiles.each {|f| load f}
+        
         # Set directory as last used and give feedback 
         @dir = d
         Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
-        UI.messagebox "Successfully loaded these extensions: \n\n#{rbfiles.join("\n").upcase!}\n\nThey will remain available until you restart SketchUp."
+        UI.messagebox "Successfully loaded Ruby files / extensions: \n\n#{rbfiles.join("\n")}\n\nFrom: #{@dir.to_s}\n\nIf these are extensions, then they will remain available until you exit SketchUp."
         
       rescue => e
       
-        UI.messagebox "Did not load extensions.\n\nError: #{e}"  if !e.empty?
+        UI.messagebox "Did not load files / extensions.\n\nError: #{e}" if !e.to_s.empty?
       
       end    
       
@@ -120,7 +118,7 @@ module AS_Extensions
     def self.load_plugin_zip
     # Installs a plugin permanently from a ZIP or RBZ file
     
-      f = UI.openpanel "Select a plugin/extension installer file (with RBZ or ZIP extension)", @dir, "*.rbz;*.zip"
+      f = UI.openpanel("Select an extension installer file (with RBZ or ZIP extension)", @dir, "RBZ Files|*.rbz|ZIP Files|*.zip|All Files|*.*||")
       
       if f
         begin
@@ -128,14 +126,17 @@ module AS_Extensions
           raise "Selected file is not an RBZ or ZIP file." if !(File.extname(f).include? ".rbz" or File.extname(f).include? ".zip")
           
           # Install this plugin using SketchUp's built-in function
-          Sketchup.install_from_archive(f)
+          res = Sketchup.install_from_archive( f )
+          UI.messagebox "Successfully installed extension from: \n\n#{f}\n\nThis extension will remain available until you uninstall it from the Extension Manager dialog." if res 
+          
           # Set directory as last used - no feedback here because this is done by installer
-          @dir = File.dirname(f)
+          d = File.dirname( f )
+          @dir = File.expand_path( d )
           Sketchup.write_default "as_PluginLoader", "last_dir", @dir.tr("\\","/")
           
         rescue => e
         
-          UI.messagebox "Couldn't install this RBZ or ZIP extension: \n#{f.upcase!}\n\nError: #{e}"
+          UI.messagebox "Couldn't install this RBZ or ZIP extension: \n#{f}\n\nError: #{e}"
           
         end
       end
@@ -149,9 +150,22 @@ module AS_Extensions
     def self.show_help
     # Show the website as an About dialog
     
-      dlg = UI::WebDialog.new('Plugin/Extension Loader - Help', true,'AS_pluginloader_Help', 1100, 800, 150, 150, true)
-      dlg.set_url('http://www.alexschreyer.net/projects/plugin-loader-for-sketchup')
-      dlg.show
+      title = @exttitle + ' - Help'
+      url = 'https://alexschreyer.net/projects/plugin-loader-for-sketchup/'
+
+      if Sketchup.version.to_f < 17 then  # Use old method
+        d = UI::WebDialog.new( title , true ,
+          title.gsub(/\s+/, "_") , 1000 , 600 , 100 , 100 , true);
+        d.navigation_buttons_enabled = false
+        d.set_url( url )
+        d.show      
+      else
+        d = UI::HtmlDialog.new( { :dialog_title => title, :width => 1000, :height => 600,
+          :style => UI::HtmlDialog::STYLE_DIALOG, :preferences_key => title.gsub(/\s+/, "_") } )
+        d.set_url( url )
+        d.show
+        d.center
+      end          
       
     end # show_help
     
@@ -162,19 +176,22 @@ module AS_Extensions
     if !file_loaded?(__FILE__)
     
       # Get the SketchUp plugins menu
-      as_rubymenu = UI.menu("Plugins").add_submenu("Plugin/Extension Loader")
+      as_rubymenu = UI.menu("Plugins").add_submenu("Ruby / Extension Loader")
     
       # Add menu items
       if as_rubymenu
       
-        as_rubymenu.add_item("Load single plugin/extension (RB)") { AS_PluginLoader::load_plugin_file }
-        as_rubymenu.add_item("Load all plugins/extensions from a folder (RB)") { AS_PluginLoader::load_plugin_folder }
+        as_rubymenu.add_item("Load single Ruby file / extension (RB)") { AS_PluginLoader::load_plugin_file }
+        as_rubymenu.add_item("Load all Ruby files / extensions from a folder (RB)") { AS_PluginLoader::load_plugin_folder }
     
         as_rubymenu.add_separator
         
-        as_rubymenu.add_item("Install single plugin/extension (RBZ or ZIP)") { AS_PluginLoader::load_plugin_zip } if Sketchup.version_number >= 8000999
-        as_rubymenu.add_item("Manage installed plugins/extensions") { UI.show_preferences "Extensions" }   
-        as_rubymenu.add_item("Open SketchUp's Plugins folder") { UI.openURL("file:///#{Sketchup.find_support_file('Plugins')}") }
+        as_rubymenu.add_item("Install single extension (RBZ or ZIP)") { AS_PluginLoader::load_plugin_zip } if Sketchup.version_number >= 8000999
+        as_rubymenu.add_item("Manage installed extensions") { UI.show_extension_manager } if UI.respond_to?('show_extension_manager')
+        as_rubymenu.add_item("Open SketchUp's Plugins/Extensions folder") { UI.openURL("file:///#{Sketchup.find_support_file('Plugins')}") }
+        
+        as_rubymenu.add_separator
+        
         as_rubymenu.add_item("Help") { AS_PluginLoader::show_help }
       
        end
