@@ -25,8 +25,13 @@ module AS_Extensions
     @dir = @last_dir if @last_dir != nil
     # Do some spring cleaning on the path
     @dir = File.expand_path( @dir )
-    # @dir = @dir.tr("\\","/") TODO: Can go?
-    
+
+    # Load extensions at startup from saved added path
+    @added_path = Sketchup.read_default 'as_PluginLoader', 'added_path', ''
+    if @added_path != ""
+      loc = File.expand_path( @added_path )
+      require_all( loc )
+    end
     
     # ============================
   
@@ -38,6 +43,7 @@ module AS_Extensions
       f = UI.openpanel( "Select the main (top level) Ruby / Extension file to load it", @dir, "Ruby Files|*.rb|All Files|*.*||" )
   
       if f
+      
         begin
         
           raise "Selected file is not a Ruby file." if File.extname(f) != ".rb"
@@ -58,6 +64,7 @@ module AS_Extensions
           UI.messagebox "Could not load Ruby file / extension at: \n#{f}\n\nError: #{e}"
           
         end
+        
       end
       
     end # load_plugin_file
@@ -121,6 +128,7 @@ module AS_Extensions
       f = UI.openpanel("Select an extension installer file (with RBZ or ZIP extension)", @dir, "RBZ Files|*.rbz|ZIP Files|*.zip|All Files|*.*||")
       
       if f
+      
         begin
         
           raise "Selected file is not an RBZ or ZIP file." if !(File.extname(f).include? ".rbz" or File.extname(f).include? ".zip")
@@ -139,9 +147,45 @@ module AS_Extensions
           UI.messagebox "Couldn't install this RBZ or ZIP extension: \n#{f}\n\nError: #{e}"
           
         end
+        
       end
       
     end # load_plugin_zip  
+    
+    
+    # ============================
+  
+  
+    def self.add_path
+    # Offer to add an additional load path to the SketchUp startup
+    
+      @added_path = Sketchup.read_default 'as_PluginLoader', 'added_path', ''
+      
+      msg = "In addition to loading from SketchUp's regular Plugins/Extensions directory, "
+      if @added_path != ""
+        msg += "all extensions contained in the following directory are also currently being loaded automatically at startup:\n\n#{@added_path}\n\nDo you want to change this?"
+      else
+        msg += "no extensions are currently being loaded from an additional location.\n\nDo you want to specify a new, separate startup loading directory?"
+      end
+      res = UI.messagebox msg, MB_YESNO
+      
+      if res == IDYES
+      
+        d = UI.select_directory( title: "Select additional directory containing Extensions to be loaded at startup" )
+        
+        if d != nil
+          @added_path = File.expand_path( d )
+          UI.messagebox "The following additional directory path has now been stored:\n\n#{@added_path}\n\nExtensions contained within it will be loaded automatically each time you start SketchUp."
+        else
+          res = UI.messagebox "Do you want to clear this currently stored directory:\n\n#{@added_path}\n\nDoing so will only load regularly installed SketchUp extensions at the next startup.", MB_YESNO
+          @added_path = "" if res == IDYES
+        end
+        
+      end
+      
+      Sketchup.write_default 'as_PluginLoader', 'added_path', @added_path
+    
+    end # add_path 
   
   
     # ============================
@@ -182,13 +226,14 @@ module AS_Extensions
       if as_rubymenu
       
         as_rubymenu.add_item("Load single Ruby file / extension (RB)") { AS_PluginLoader::load_plugin_file }
-        as_rubymenu.add_item("Load all Ruby files / extensions from a folder (RB)") { AS_PluginLoader::load_plugin_folder }
+        as_rubymenu.add_item("Load all Ruby files / extensions from a directory (RB)") { AS_PluginLoader::load_plugin_folder }
+        as_rubymenu.add_item("Set additional load path for extensions") { AS_PluginLoader::add_path }        
     
         as_rubymenu.add_separator
         
         as_rubymenu.add_item("Install single extension (RBZ or ZIP)") { AS_PluginLoader::load_plugin_zip } if Sketchup.version_number >= 8000999
         as_rubymenu.add_item("Manage installed extensions") { UI.show_extension_manager } if UI.respond_to?('show_extension_manager')
-        as_rubymenu.add_item("Open SketchUp's Plugins/Extensions folder") { UI.openURL("file:///#{Sketchup.find_support_file('Plugins')}") }
+        as_rubymenu.add_item("Open SketchUp's Plugins/Extensions directory") { UI.openURL("file:///#{Sketchup.find_support_file('Plugins')}") }
         
         as_rubymenu.add_separator
         

@@ -1,6 +1,6 @@
 =begin
 
-Copyright 2009-2015, Alexander C. Schreyer
+Copyright 2009-2019, Alexander C. Schreyer
 All rights reserved
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -13,22 +13,23 @@ Author :        Alexander Schreyer, www.alexschreyer.net, mail@alexschreyer.net
 
 Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
-Name :          Plugin/Extension Loader
+Name :          Ruby / Extension Loader
 
-Version:        1.7
+Version:        1.8
 
-Date :          2/22/2015
+Date :          9/10/2019
 
-Description :   Adds a submenu to the Plugins menu to offer these
-                functions:
-                - Load single RB plugin (on-demand)
-                - Load all RB plugins from a folder (on-demand)
-                - Install plugin from RBZ or ZIP file
+Description :   Adds a menu item to the Plugins/Extensions menu, which helps with on-demand 
+                loading of SketchUp extensions from any location.
+                - Load single RB extension (on-demand)
+                - Load all RB extensions from a folder (on-demand)
+                - Install extension from RBZ or ZIP file
+                - Store additional load location
 
-Usage :         Place plugins and support files into a convenient location
-                (e.g. a folder on a USB drive). Make sure correct plugin folder structure is kept.
-                Then load plugins using this tool from that lcation on-demand. After restarting
-                SketchUp, your plugin will be unloaded again.
+Usage :         Place Ruby / extension and support files into a convenient location
+                (e.g. a folder on a USB drive). Make sure correct extension folder structure is kept.
+                Then load extensions using this tool from the lcation on-demand. After restarting
+                SketchUp, your extension will be unloaded again, keeping SketchUp slim.
 
 History:        1.0 (3/9/2009):
                 - first version
@@ -67,7 +68,7 @@ History:        1.0 (3/9/2009):
                 - Added plugins directory menu item
                 - Code cleanup
                 - SketchUp 8 syntax error fix
-                1.8 (TBD):
+                1.8 (9/10/2019):
                 - Drop pre-SU8 support
                 - Code cleanup
                 - Minor bugfixes
@@ -75,6 +76,7 @@ History:        1.0 (3/9/2009):
                 - Updated help website location and dialog
                 - Drop word "plugin" in favor of "extension"
                 - Show Extension Manager instead of preferences
+                - Offer to store additional loading directory (e.g. on USB drive)
                 
 
 TODO List:
@@ -85,8 +87,8 @@ TODO List:
 # ========================
 
 
-require 'sketchup.rb'
-require 'extensions.rb'
+require 'sketchup'
+require 'extensions'
 
 
 # ========================
@@ -109,7 +111,7 @@ module AS_Extensions
     extension.copyright   = "Copyright 2009-#{Time.now.year} Alexander C. Schreyer"
     extension.creator     = "Alexander C. Schreyer, www.alexschreyer.net"
     extension.version     = @extversion
-    extension.description = "Adds a menu item to the Plugins/Extensions menu, which allows for on-demand loading of SketchUp extensions from any location."
+    extension.description = "Adds a menu item to the Plugins/Extensions menu, which helps with on-demand loading of SketchUp extensions from any location."
     
     Sketchup.register_extension( extension , true )
          
