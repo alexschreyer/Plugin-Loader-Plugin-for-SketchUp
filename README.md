@@ -1,5 +1,5 @@
-Plugin-Loader-Plugin-for-SketchUp
-=================================
+On-Demand Ruby / Extension Loader for SketchUp
+==============================================
 
 Copyright 2019, Alexander C. Schreyer
 All rights reserved
