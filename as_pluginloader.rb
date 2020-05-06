@@ -1,6 +1,6 @@
 =begin
 
-Copyright 2009-2019, Alexander C. Schreyer
+Copyright 2009-2020, Alexander C. Schreyer
 All rights reserved
 
 THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
@@ -15,9 +15,9 @@ Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
 
 Name :          Ruby / Extension Loader
 
-Version:        1.8
+Version:        1.9
 
-Date :          9/10/2019
+Date :          5/6/2020
 
 Description :   Adds a menu item to the Plugins/Extensions menu, which helps with on-demand 
                 loading of SketchUp extensions from any location.
@@ -77,6 +77,9 @@ History:        1.0 (3/9/2009):
                 - Drop word "plugin" in favor of "extension"
                 - Show Extension Manager instead of preferences
                 - Offer to store additional loading directory (e.g. on USB drive)
+                1.9 (5/6/2020)
+                - Minor code cleanup edits
+                - Dialog fix for SU 2020 (GC issue)
                 
 
 TODO List:
@@ -98,7 +101,7 @@ module AS_Extensions
 
   module AS_PluginLoader
   
-    @extversion           = "1.7"
+    @extversion           = "1.9"
     @exttitle             = "Ruby / Extension Loader"
     @extname              = "as_pluginloader"
     

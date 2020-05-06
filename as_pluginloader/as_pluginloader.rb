@@ -191,26 +191,30 @@ module AS_Extensions
     # ============================
   
   
+    def self.show_url( title , url )
+    # Show website either as a WebDialog or HtmlDialog
+    
+      if Sketchup.version.to_f < 17 then   # Use old dialog
+        @dlg = UI::WebDialog.new( title , true ,
+          title.gsub(/\s+/, "_") , 1000 , 600 , 100 , 100 , true);
+        @dlg.navigation_buttons_enabled = false
+        @dlg.set_url( url )
+        @dlg.show      
+      else   #Use new dialog
+        @dlg = UI::HtmlDialog.new( { :dialog_title => title, :width => 1000, :height => 600,
+          :style => UI::HtmlDialog::STYLE_DIALOG, :preferences_key => title.gsub(/\s+/, "_") } )
+        @dlg.set_url( url )
+        @dlg.show
+        @dlg.center
+      end  
+    
+    end  
+
     def self.show_help
     # Show the website as an About dialog
     
-      title = @exttitle + ' - Help'
-      url = 'https://alexschreyer.net/projects/plugin-loader-for-sketchup/'
+      show_url( "#{@exttitle} - Help" , 'https://alexschreyer.net/projects/plugin-loader-for-sketchup/' )
 
-      if Sketchup.version.to_f < 17 then  # Use old method
-        d = UI::WebDialog.new( title , true ,
-          title.gsub(/\s+/, "_") , 1000 , 600 , 100 , 100 , true);
-        d.navigation_buttons_enabled = false
-        d.set_url( url )
-        d.show      
-      else
-        d = UI::HtmlDialog.new( { :dialog_title => title, :width => 1000, :height => 600,
-          :style => UI::HtmlDialog::STYLE_DIALOG, :preferences_key => title.gsub(/\s+/, "_") } )
-        d.set_url( url )
-        d.show
-        d.center
-      end          
-      
     end # show_help
     
     
@@ -227,7 +231,7 @@ module AS_Extensions
       
         as_rubymenu.add_item("Load single Ruby file / extension (RB)") { AS_PluginLoader::load_plugin_file }
         as_rubymenu.add_item("Load all Ruby files / extensions from a directory (RB)") { AS_PluginLoader::load_plugin_folder }
-        as_rubymenu.add_item("Set additional load path for extensions") { AS_PluginLoader::add_path }        
+        as_rubymenu.add_item("Set/Edit additional load path for extensions") { AS_PluginLoader::add_path }        
     
         as_rubymenu.add_separator
         
