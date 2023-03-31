@@ -13,3 +13,10 @@ License:        GPL (https://www.gnu.org/licenses/gpl-3.0.html)
 Author :        Alexander Schreyer, www.alexschreyer.net, mail@alexschreyer.net
 
 Website:        http://www.alexschreyer.net/projects/plugin-loader-for-sketchup
+
+Description :   Adds a menu item to the Plugins/Extensions menu, which helps with on-demand 
+                loading of SketchUp extensions from any location.
+                - Load single RB extension (on-demand)
+                - Load all RB extensions from a folder (on-demand)
+                - Install extension from RBZ or ZIP file
+                - Store additional load location
