@@ -131,7 +131,7 @@ module AS_Extensions
       
         begin
         
-          raise "Selected file is not an RBZ or ZIP file." if !(File.extname(f).include? ".rbz" or File.extname(f).include? ".zip")
+          raise "Selected file is not an RBZ or ZIP file." if !(File.extname(f).downcase.match?(/\.(rbz|zip)$/))
           
           # Install this plugin using SketchUp's built-in function
           res = Sketchup.install_from_archive( f )
